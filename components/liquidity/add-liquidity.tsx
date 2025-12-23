@@ -275,23 +275,36 @@ export function AddLiquidity({ poolTokenX, poolTokenY, poolBinStep, poolPairAddr
 
     // CRITICAL FIX: Normalize weights to sum to 1e18 (PRECISION in LiquidityConfigurations.sol)
     // TraderJoe uses 1e18 precision, not 10000!
-    const PRECISION = 1e18
-    const sum = weights.reduce((a, b) => a + b, 0)
-    const normalizedWeights = weights.map(w => Math.floor((w / sum) * PRECISION))
+    // IMPORTANT: We store as string to avoid JavaScript Number precision loss (1e18 > Number.MAX_SAFE_INTEGER)
+    const PRECISION = "1000000000000000000" // 1e18 as string
+    const PRECISION_BI = BigInt(PRECISION)
 
-    // Adjust sum to ensure it equals exactly PRECISION (1e18)
-    const currentSum = normalizedWeights.reduce((a, b) => a + b, 0)
-    const diff = PRECISION - currentSum
-    if (diff !== 0 && normalizedWeights.length > 0) {
-      normalizedWeights[centerIndex] += diff
+    const sum = weights.reduce((a, b) => a + b, 0)
+
+    // Calculate using BigInt for exact precision
+    const normalizedWeights: string[] = weights.map(w => {
+      const ratio = w / sum
+      // Multiply ratio by 1e18 using BigInt math
+      // ratio * 1e18 = (ratio * 1e9) * 1e9 to stay in safe Number range
+      const ratioBig = Math.floor(ratio * 1e9) // Safe: ratio < 1, so this < 1e9
+      const scaledBI = BigInt(ratioBig) * BigInt(1e9) // Now scale to 1e18
+      return scaledBI.toString()
+    })
+
+    // Adjust sum to ensure it equals exactly 1e18
+    const currentSum = normalizedWeights.reduce((a, b) => BigInt(a) + BigInt(b), BigInt(0))
+    const diff = PRECISION_BI - currentSum
+    if (diff !== BigInt(0) && normalizedWeights.length > 0) {
+      normalizedWeights[centerIndex] = (BigInt(normalizedWeights[centerIndex]) + diff).toString()
     }
 
     // CRITICAL: Split distribution based on bin position relative to active bin
     // deltaId < 0 (bin ID < activeId) → tokenY only (lower price)
     // deltaId > 0 (bin ID > activeId) → tokenX only (higher price)
     // deltaId = 0 (bin ID = activeId) → can have both, but typically tokenX or tokenY
-    const distributionX: number[] = []
-    const distributionY: number[] = []
+    // Use string[] to maintain precision (no Number conversion until final BigInt)
+    const distributionX: string[] = []
+    const distributionY: string[] = []
 
     for (let i = 0; i < numBins; i++) {
       const deltaId = deltaIds[i]
@@ -299,17 +312,17 @@ export function AddLiquidity({ poolTokenX, poolTokenY, poolBinStep, poolPairAddr
 
       if (deltaId < 0) {
         // Bin ID < activeId → lower price → tokenY only
-        distributionX.push(0)
+        distributionX.push("0")
         distributionY.push(weight)
       } else if (deltaId > 0) {
         // Bin ID > activeId → higher price → tokenX only
         distributionX.push(weight)
-        distributionY.push(0)
+        distributionY.push("0")
       } else {
         // deltaId = 0 → active bin → typically tokenX (can be adjusted)
         // For simplicity, we'll put it in tokenX, but this could be split
         distributionX.push(weight)
-        distributionY.push(0)
+        distributionY.push("0")
       }
     }
 
@@ -568,26 +581,29 @@ export function AddLiquidity({ poolTokenX, poolTokenY, poolBinStep, poolPairAddr
       // deltaId < 0 → bin ID < activeId → lower price → contract tokenY
       // deltaId >= 0 → bin ID >= activeId → higher price → contract tokenX
       const numBins = deltaIds.length
-      const finalDistributionX: number[] = []
-      const finalDistributionY: number[] = []
+      const finalDistributionX: string[] = []
+      const finalDistributionY: string[] = []
       
       // Get base weights from getDistribution (they're strategy-based, not token-based)
-      const baseWeights = getDistribution.distributionX.map((x, i) => 
-        x + getDistribution.distributionY[i]
-      ) // Sum of both distributions gives us the weight for each bin
+      // distributionX and distributionY are now strings (for precision), convert to BigInt for math
+      const baseWeights = getDistribution.distributionX.map((x, i) => {
+        const xBig = BigInt(x)
+        const yBig = BigInt(getDistribution.distributionY[i])
+        return (xBig + yBig).toString() // Sum as BigInt, store as string
+      })
       
       for (let i = 0; i < numBins; i++) {
         const deltaId = deltaIds[i]
         const weight = baseWeights[i]
-        
+
         if (deltaId < 0) {
           // Bin ID < activeId → lower price → contract tokenY only
-          finalDistributionX.push(0)
+          finalDistributionX.push("0")
           finalDistributionY.push(weight)
         } else {
           // Bin ID >= activeId → higher price → contract tokenX only
           finalDistributionX.push(weight)
-          finalDistributionY.push(0)
+          finalDistributionY.push("0")
         }
       }
       
@@ -623,8 +639,8 @@ export function AddLiquidity({ poolTokenX, poolTokenY, poolBinStep, poolPairAddr
         activeIdDesired: activeIdToUse,
         idSlippage: BigInt(100), // Increased slippage for safety
         deltaIds: deltaIds.map(BigInt),
-        distributionX: finalDistributionX.map(BigInt),
-        distributionY: finalDistributionY.map(BigInt),
+        distributionX: finalDistributionX.map(s => BigInt(s)),
+        distributionY: finalDistributionY.map(s => BigInt(s)),
         to: address,
         refundTo: address,
         deadline: BigInt(Math.floor(Date.now() / 1000) + 1200),
