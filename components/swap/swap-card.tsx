@@ -117,7 +117,7 @@ export function SwapCard() {
         args: [
           amountIn,
           minAmountOut,
-          [25], // pairBinSteps
+          [BigInt(25)], // pairBinSteps
           [fromToken.address as `0x${string}`, toToken.address as `0x${string}`],
           address,
           BigInt(Math.floor(Date.now() / 1000) + 1200), // 20 min deadline
