@@ -314,11 +314,17 @@ export function AddLiquidity({ poolTokenX, poolTokenY, poolBinStep, poolPairAddr
       const weight = weights[i]
 
       if (deltaId < 0) {
+        // Bins below active → tokenY only
         weightsY.push(weight)
         weightsX.push(0)
-      } else {
+      } else if (deltaId > 0) {
+        // Bins above active → tokenX only
         weightsX.push(weight)
         weightsY.push(0)
+      } else {
+        // Active bin (deltaId === 0) → split 50-50 (TraderJoe V2 standard)
+        weightsX.push(weight / 2)
+        weightsY.push(weight / 2)
       }
     }
 
