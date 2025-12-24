@@ -429,24 +429,26 @@ export function AddLiquidity({ poolTokenX, poolTokenY, poolBinStep, poolPairAddr
       finalTokenY = tokenXIsContractX ? tokenY : tokenX
       finalAmountX = tokenXIsContractX ? amountX : amountY
       finalAmountY = tokenXIsContractX ? amountY : amountX
-    } else if (poolTokenX?.address && poolTokenY?.address) {
-      // Fallback: Use pool token addresses but sort them correctly (tokenX < tokenY)
-      // CRITICAL: LBRouter expects tokenX < tokenY (address comparison)
-      const tokenXAddr = poolTokenX.address.toLowerCase()
-      const tokenYAddr = poolTokenY.address.toLowerCase()
-      
+    } else if (tokenX?.address && tokenY?.address) {
+      // Fallback: Use RESOLVED token addresses (same as approvals) and sort them correctly
+      // CRITICAL: Must use tokenX.address/tokenY.address (resolved from TOKENS list)
+      // NOT poolTokenX.address/poolTokenY.address (pool-provided addresses)
+      // Because approvals were done for resolved addresses!
+      const tokenXAddr = tokenX.address.toLowerCase()
+      const tokenYAddr = tokenY.address.toLowerCase()
+
       // Sort: tokenX must be < tokenY
       if (tokenXAddr < tokenYAddr) {
-        finalContractTokenX = poolTokenX.address
-        finalContractTokenY = poolTokenY.address
+        finalContractTokenX = tokenX.address
+        finalContractTokenY = tokenY.address
         finalTokenX = tokenX
         finalTokenY = tokenY
         finalAmountX = amountX
         finalAmountY = amountY
       } else {
-        // Swap order: pool'un UI'daki tokenX'i aslında contract'ta tokenY olabilir
-        finalContractTokenX = poolTokenY.address
-        finalContractTokenY = poolTokenX.address
+        // Swap order
+        finalContractTokenX = tokenY.address
+        finalContractTokenY = tokenX.address
         finalTokenX = tokenY
         finalTokenY = tokenX
         finalAmountX = amountY
@@ -455,9 +457,9 @@ export function AddLiquidity({ poolTokenX, poolTokenY, poolBinStep, poolPairAddr
       console.warn("⚠️ Using fallback token addresses (contract call failed):", {
         finalContractTokenX,
         finalContractTokenY,
-        originalX: poolTokenX.address,
-        originalY: poolTokenY.address,
-        note: "Token order sorted by address (tokenX < tokenY)",
+        resolvedX: tokenX.address,
+        resolvedY: tokenY.address,
+        note: "Using RESOLVED token addresses (same as approvals), sorted by address (tokenX < tokenY)",
       })
     } else {
       toast({
