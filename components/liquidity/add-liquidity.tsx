@@ -656,6 +656,15 @@ export function AddLiquidity({ poolTokenX, poolTokenY, poolBinStep, poolPairAddr
       console.log("  tokenX:", liquidityParams.tokenX)
       console.log("  tokenY:", liquidityParams.tokenY)
       console.log("  binStep:", liquidityParams.binStep.toString())
+      console.log("  amountX:", liquidityParams.amountX.toString())
+      console.log("  amountY:", liquidityParams.amountY.toString())
+      console.log("  amountXMin:", liquidityParams.amountXMin.toString())
+      console.log("  amountYMin:", liquidityParams.amountYMin.toString())
+      console.log("  activeIdDesired:", liquidityParams.activeIdDesired.toString())
+      console.log("  idSlippage:", liquidityParams.idSlippage.toString())
+      console.log("  deltaIds:", liquidityParams.deltaIds.map(d => d.toString()))
+      console.log("  distributionX:", liquidityParams.distributionX.map(d => d.toString()))
+      console.log("  distributionY:", liquidityParams.distributionY.map(d => d.toString()))
 
       const hash = await writeContractAsync({
         address: CONTRACTS.LBRouter as `0x${string}`,
