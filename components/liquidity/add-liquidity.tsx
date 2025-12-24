@@ -300,33 +300,69 @@ export function AddLiquidity({ poolTokenX, poolTokenY, poolBinStep, poolPairAddr
 
     // CRITICAL: Split distribution based on bin position relative to active bin
     // deltaId < 0 (bin ID < activeId) → tokenY only (lower price)
-    // deltaId > 0 (bin ID > activeId) → tokenX only (higher price)
-    // deltaId = 0 (bin ID = activeId) → can have both, but typically tokenX or tokenY
+    // deltaId >= 0 (bin ID >= activeId) → tokenX only (higher price)
     // Use string[] to maintain precision (no Number conversion until final BigInt)
     const distributionX: string[] = []
     const distributionY: string[] = []
 
+    // First pass: separate weights by token
+    const weightsX: number[] = []
+    const weightsY: number[] = []
+
     for (let i = 0; i < numBins; i++) {
       const deltaId = deltaIds[i]
-      const weight = normalizedWeights[i]
+      const weight = weights[i]
 
       if (deltaId < 0) {
-        // Bin ID < activeId → lower price → tokenY only
-        distributionX.push("0")
-        distributionY.push(weight)
-      } else if (deltaId > 0) {
-        // Bin ID > activeId → higher price → tokenX only
-        distributionX.push(weight)
-        distributionY.push("0")
+        weightsY.push(weight)
+        weightsX.push(0)
       } else {
-        // deltaId = 0 → active bin → typically tokenX (can be adjusted)
-        // For simplicity, we'll put it in tokenX, but this could be split
-        distributionX.push(weight)
-        distributionY.push("0")
+        weightsX.push(weight)
+        weightsY.push(0)
       }
     }
 
-    return { deltaIds, distributionX, distributionY, numBins }
+    // Normalize each side separately to 1e18
+    const sumX = weightsX.reduce((a, b) => a + b, 0)
+    const sumY = weightsY.reduce((a, b) => a + b, 0)
+
+    // Normalize X weights to 1e18
+    const normalizedX: string[] = weightsX.map(w => {
+      if (w === 0) return "0"
+      const ratio = w / sumX
+      const ratioBig = Math.floor(ratio * 1e9)
+      const scaledBI = BigInt(ratioBig) * BigInt(1e9)
+      return scaledBI.toString()
+    })
+
+    // Normalize Y weights to 1e18
+    const normalizedY: string[] = weightsY.map(w => {
+      if (w === 0) return "0"
+      const ratio = w / sumY
+      const ratioBig = Math.floor(ratio * 1e9)
+      const scaledBI = BigInt(ratioBig) * BigInt(1e9)
+      return scaledBI.toString()
+    })
+
+    // Adjust to ensure exact 1e18 sum for each side
+    const currentSumX = normalizedX.reduce((a, b) => BigInt(a) + BigInt(b), BigInt(0))
+    const currentSumY = normalizedY.reduce((a, b) => BigInt(a) + BigInt(b), BigInt(0))
+
+    // Find first non-zero index for each side to apply adjustment
+    const firstNonZeroX = normalizedX.findIndex(v => v !== "0")
+    const firstNonZeroY = normalizedY.findIndex(v => v !== "0")
+
+    if (firstNonZeroX !== -1) {
+      const diffX = PRECISION_BI - currentSumX
+      normalizedX[firstNonZeroX] = (BigInt(normalizedX[firstNonZeroX]) + diffX).toString()
+    }
+
+    if (firstNonZeroY !== -1) {
+      const diffY = PRECISION_BI - currentSumY
+      normalizedY[firstNonZeroY] = (BigInt(normalizedY[firstNonZeroY]) + diffY).toString()
+    }
+
+    return { deltaIds, distributionX: normalizedX, distributionY: normalizedY, numBins }
   }, [strategy])
 
   const needsApprovalX = () => {
