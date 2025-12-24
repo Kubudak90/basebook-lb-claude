@@ -487,52 +487,54 @@ export function AddLiquidity({ poolTokenX, poolTokenY, poolBinStep, poolPairAddr
       return
     }
 
-    // CRITICAL: Check approvals for final tokens by reading directly from contract
-    // This ensures we have the latest allowance values
-    const finalAmountXBig = parseUnits(finalAmountX, finalTokenX.decimals)
-    const finalAmountYBig = parseUnits(finalAmountY, finalTokenY.decimals)
-    
-    // Read allowances directly from contract for final tokens
+    // CRITICAL: Check approvals for UI tokens (not final/swapped tokens)
+    // Because approve buttons use UI token order (tokenX, tokenY)
+    const uiAmountXBig = parseUnits(amountX, tokenX.decimals)
+    const uiAmountYBig = parseUnits(amountY, tokenY.decimals)
+
+    // Read allowances directly from contract for UI tokens
     const { readContract } = await import("wagmi/actions")
     const { wagmiConfig } = await import("@/lib/web3/wagmi-config")
-    
-    let finalTokenXAllowance: bigint
-    let finalTokenYAllowance: bigint
-    
+
+    let tokenXAllowance: bigint
+    let tokenYAllowance: bigint
+
     try {
       const [allowanceXResult, allowanceYResult] = await Promise.all([
         readContract(wagmiConfig as any, {
-          address: finalTokenX.address as `0x${string}`,
+          address: tokenX.address as `0x${string}`,
           abi: ERC20ABI,
           functionName: "allowance",
           args: [address, CONTRACTS.LBRouter as `0x${string}`],
         }),
         readContract(wagmiConfig as any, {
-          address: finalTokenY.address as `0x${string}`,
+          address: tokenY.address as `0x${string}`,
           abi: ERC20ABI,
           functionName: "allowance",
           args: [address, CONTRACTS.LBRouter as `0x${string}`],
         }),
       ])
-      
-      finalTokenXAllowance = allowanceXResult as bigint
-      finalTokenYAllowance = allowanceYResult as bigint
-      
-      console.log("🔍 Approval Check (DIRECT CONTRACT READ):", {
-        finalTokenX: finalTokenX.address,
-        finalTokenY: finalTokenY.address,
-        finalTokenXAllowance: finalTokenXAllowance.toString(),
-        finalTokenYAllowance: finalTokenYAllowance.toString(),
-        finalAmountXBig: finalAmountXBig.toString(),
-        finalAmountYBig: finalAmountYBig.toString(),
-        needsApprovalX: finalTokenXAllowance < finalAmountXBig,
-        needsApprovalY: finalTokenYAllowance < finalAmountYBig,
+
+      tokenXAllowance = allowanceXResult as bigint
+      tokenYAllowance = allowanceYResult as bigint
+
+      console.log("🔍 Approval Check (UI TOKENS - Not swapped):", {
+        tokenX: tokenX.address,
+        tokenY: tokenY.address,
+        tokenXSymbol: tokenX.symbol,
+        tokenYSymbol: tokenY.symbol,
+        tokenXAllowance: tokenXAllowance.toString(),
+        tokenYAllowance: tokenYAllowance.toString(),
+        uiAmountXBig: uiAmountXBig.toString(),
+        uiAmountYBig: uiAmountYBig.toString(),
+        needsApprovalX: tokenXAllowance < uiAmountXBig,
+        needsApprovalY: tokenYAllowance < uiAmountYBig,
       })
-      
-      if (finalTokenXAllowance < finalAmountXBig || finalTokenYAllowance < finalAmountYBig) {
+
+      if (tokenXAllowance < uiAmountXBig || tokenYAllowance < uiAmountYBig) {
         toast({
           title: "Approval gerekli",
-          description: `Lütfen önce token'ları onaylayın. ${finalTokenX?.symbol} veya ${finalTokenY?.symbol} için yeterli izin yok.`,
+          description: `Lütfen önce token'ları onaylayın. ${tokenX?.symbol} veya ${tokenY?.symbol} için yeterli izin yok.`,
           variant: "destructive",
         })
         return
