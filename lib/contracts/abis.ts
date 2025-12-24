@@ -6,7 +6,7 @@ export const LBRouterABI = parseAbi([
   "function swapTokensForExactTokens(uint256 amountOut, uint256 amountInMax, uint256[] pairBinSteps, address[] tokenPath, address to, uint256 deadline) external returns (uint256[] amountsIn)",
   "function getSwapIn(address lbPair, uint128 amountOut, bool swapForY) external view returns (uint128 amountIn, uint128 amountOutLeft, uint128 fee)",
   "function getSwapOut(address lbPair, uint128 amountIn, bool swapForY) external view returns (uint128 amountInLeft, uint128 amountOut, uint128 fee)",
-  "function addLiquidity((address tokenX, address tokenY, uint256 binStep, uint256 amountX, uint256 amountXMin, uint256 amountY, uint256 amountYMin, uint256 activeIdDesired, uint256 idSlippage, int256[] deltaIds, uint256[] distributionX, uint256[] distributionY, address to, address refundTo, uint256 deadline) liquidityParameters) external returns (uint256 amountXAdded, uint256 amountYAdded, uint256 amountXLeft, uint256 amountYLeft, uint256[] depositIds, uint256[] liquidityMinted)",
+  "function addLiquidity((address tokenX, address tokenY, uint256 binStep, uint256 amountX, uint256 amountY, uint256 amountXMin, uint256 amountYMin, uint256 activeIdDesired, uint256 idSlippage, int256[] deltaIds, uint256[] distributionX, uint256[] distributionY, address to, address refundTo, uint256 deadline) liquidityParameters) external returns (uint256 amountXAdded, uint256 amountYAdded, uint256 amountXLeft, uint256 amountYLeft, uint256[] depositIds, uint256[] liquidityMinted)",
   "function removeLiquidity(address tokenX, address tokenY, uint16 binStep, uint256 amountXMin, uint256 amountYMin, uint256[] ids, uint256[] amounts, address to, uint256 deadline) external returns (uint256 amountX, uint256 amountY)",
 ])
 
